@@ -1,0 +1,28 @@
+{% extends "barfoo/layout.html" %}
+
+{% load static %}
+
+{% block title %}
+    Flight Page
+{% endblock %}
+
+
+{% block stylesheet %}
+    <link rel="stylesheet" href="{% static 'barfoo/css/index.css' %}">
+{% endblock %}
+
+
+{% block body %}
+
+        <h2 class="message">THIS IS COLOR RED!!!</h2>
+        <br>
+
+    <h1>
+        List of flights :- </h1>
+        <hr>
+
+        {% for flight in flights %}
+            <li><a href="{% url 'flight' flight.id %}">{{ flight.origin.city }} to {{ flight.destination.city }} </a></li>
+        {% endfor %}
+   
+{% endblock %}

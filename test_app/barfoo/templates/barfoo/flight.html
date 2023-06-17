@@ -1,0 +1,60 @@
+{% extends "barfoo/layout.html" %}
+
+{% block title %}
+    flight page 
+{% endblock %}
+
+{% block body %}
+
+<h1>Flight {{ flight.id }}</h1>
+<hr>
+
+Origin:  <strong>{{ flight.origin.city }}</strong> <br>
+Destination:  <strong>{{ flight.destination.city }}</strong> <br>
+Duration:  <strong>{{ flight.duration }}</strong><br>
+
+<h1>Passengers :- </h1>
+<br>
+
+{% for passenger in passengers %}
+  <li>
+    {{ passenger.first_name }} {{ passenger.last_name }}
+  </li>  
+{% endfor %}
+
+<br>
+
+
+<h1>Non-Passengers :- </h1>
+
+{% for passenger in non_passengers %}
+  <li>
+    {{ passenger.first_name }} {{ passenger.last_name }}
+  </li>  
+{% endfor %}
+
+<br>
+<hr>
+<h1>Book Flight:- </h1>
+<br>
+
+<form action="{% url 'book' flight.id %}" method="post">
+
+    {% csrf_token %}
+
+    <label for="flight_booking">
+        Book flight : &nbsp;
+    </label>
+
+    <select name="passenger" id="flight_booking">
+        {% for passenger in non_passengers %}
+            <option value="{{ passenger.id }}">{{ passenger.first_name }} {{ passenger.last_name }} </option>
+        {% endfor %}
+    </select>&nbsp;
+
+    <input type="submit" value="book">
+
+</form>
+<a href="{% url 'index' %}">  <-- home page </a>
+
+{% endblock %}

@@ -12,6 +12,7 @@ services:
 
   web:
     build: ./test_app/
+    image: tomcr0000se/flight_book:latest
     volumes:
     - ./test_app:/app
     ports:
@@ -22,7 +23,7 @@ services:
     - DB_PASSWORD=postgres
     - DB_NAME=postgres 
     command: >
-      sh -c "python3 manage.py makemigrations && python3 manage.py migrate && python3 manage.py runserver 0.0.0.0:8000"
+      sh -c "python3 manage.py migrate && python3 manage.py runserver 0.0.0.0:8000"
 
     depends_on:
     - db  
