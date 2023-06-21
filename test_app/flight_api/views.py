@@ -68,7 +68,7 @@ def flights(request):
     if request.method == 'GET':
         flights = Flight.objects.all()
 
-        serializer = FlightSerilizer(flights, many=True)
+        serializer = FlightSerilizer(flights, many=True, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     elif request.method == 'POST':
@@ -82,3 +82,25 @@ def flights(request):
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
+
+
+@api_view(['GET', 'PUT', 'DELETE'])
+def flight(request, flight_id):
+
+    try:
+        flight = Flight.objects.get(pk=flight_id)
+    
+    except Flight.DoesNotExist:
+        return Response({"message": "Flight Does not exists!"}, status=status.HTTP_404_NOT_FOUND )
+
+    if request.method == 'GET':
+
+        serializer = FlightSerilizer(flight, context = {"request": request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    elif request.method == 'DELETE':
+        
+        flight.delete()
+        return Response({"message": "Flight got deleted!"}, status=status.HTTP_200_OK)
+    
+    

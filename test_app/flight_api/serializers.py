@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from barfoo.models import *
 from rest_framework.validators import UniqueTogetherValidator
+from collections import OrderedDict
 
 
 
@@ -64,14 +65,51 @@ class FlightSerilizer(serializers.ModelSerializer):
         return attrs
 
     def to_representation(self, instance):
-        representation = super().to_representation(instance)
+        rep = super().to_representation(instance)
 
         request = self.context.get('request', None)
 
         if request and request.method == 'POST':
-            representation.pop('passengers')
+            rep.pop('passengers')
+
+        elif request and request.method == 'GET':
+
+            keys = list(rep.keys())
+
+            origin  = rep.pop('origin')
+            destination = rep.pop('destination')
+
+            #print(rep)
+            origin.pop("id")
+            origin.pop("departures")
+            origin.pop("arrivals")
+
+            #destination pop
+            destination.pop("id")
+            destination.pop("departures")
+            destination.pop("arrivals")
+            
+
+            #code to maintain order of the origin `rep` function
+            origin_idx = keys.index('origin')
+            destination_idx = keys.index('destination')
+            
+            temp = OrderedDict()
+
+            keys.insert(origin_idx, 'origin')
+            keys.insert(destination_idx, 'destination')
+
+            for k in keys:
+                if k != 'origin' and   k != 'destination':
+                    temp[k] = rep[k]
+                else:
+                    if k == 'origin':
+                        temp[k] = origin
+                    elif k == 'destination':
+                        temp[k] = destination
+            rep = temp
         
-        return representation
+        return rep
 
     def create(self, validated_data):
 
