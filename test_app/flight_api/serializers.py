@@ -78,35 +78,33 @@ class FlightSerilizer(serializers.ModelSerializer):
 
             origin  = rep.pop('origin')
             destination = rep.pop('destination')
-
-            #print(rep)
-            origin.pop("id")
-            origin.pop("departures")
-            origin.pop("arrivals")
-
-            #destination pop
-            destination.pop("id")
-            destination.pop("departures")
-            destination.pop("arrivals")
             
 
             #code to maintain order of the origin `rep` function
             origin_idx = keys.index('origin')
-            destination_idx = keys.index('destination')
             
             temp = OrderedDict()
 
-            keys.insert(origin_idx, 'origin')
-            keys.insert(destination_idx, 'destination')
+            #flatten the API response
+            keys.insert(origin_idx, 'origin_city')
+            keys.insert(origin_idx+1, 'origin_code')
+
+            keys.insert(origin_idx+2, 'destination_city')
+            keys.insert(origin_idx+3, 'destination_code')
+
+            temp_keys = {
+                "origin_city": origin['city'],
+                "origin_code": origin['code'],
+                "destination_city": destination['city'],
+                "destination_code": destination['code']
+            }
 
             for k in keys:
-                if k != 'origin' and   k != 'destination':
+                if k in list(rep.keys()):
                     temp[k] = rep[k]
-                else:
-                    if k == 'origin':
-                        temp[k] = origin
-                    elif k == 'destination':
-                        temp[k] = destination
+                elif k in temp_keys.keys():
+                    temp[k] = temp_keys[k]
+                    
             rep = temp
         
         return rep
