@@ -97,10 +97,22 @@ def flight(request, flight_id):
 
         serializer = FlightSerilizer(flight, context = {"request": request})
         return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    elif request.method == 'PUT':
+        data = request.data
+        serializer = FlightSerilizer(flight, data=data, partial=True, context={"request": request})
+
+        if serializer.is_valid(raise_exception=True):
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method == 'DELETE':
         
+        flight_test = f"{flight.origin.code}-{flight.destination.code}"
         flight.delete()
-        return Response({"message": "Flight got deleted!"}, status=status.HTTP_200_OK)
+        return Response({"message": "%s Flight got deleted!" % (flight_test)}, status=status.HTTP_200_OK)
     
     

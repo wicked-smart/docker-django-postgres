@@ -38,6 +38,17 @@ class FlightSerilizer(serializers.ModelSerializer):
     destination = AirportSerializer(required=True)
     passengers = serializers.StringRelatedField(required=False, many=True)
 
+    #dynamically modify FlightSerializer fields
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        request = self.context.get('request')
+        if request and request.method == 'PUT':
+            self.fields['origin'].allow_null = True
+            self.fields['destination'].allow_null = True
+            
+
+
     class Meta:
         model = Flight
         fields = ["id", "origin", "destination", "duration", "passengers"]
@@ -49,27 +60,68 @@ class FlightSerilizer(serializers.ModelSerializer):
 
     def validate(self, attrs):
 
-        origin = attrs.pop('origin')
-        destination = attrs.pop('destination')
+        request = self.context.get('request')
+        if request and request.method == 'PUT':
+            #get the instance 
+            flight = self.instance
 
-        origin_airport = Airport.objects.filter(**origin)
-        destination_airport = Airport.objects.filter(**destination)
+            #get the attributes
+            origin = attrs.get('origin')
+            destination = attrs.get('destination')
+            duration = attrs.get('duration')
 
-        if origin_airport.exists() and destination_airport.exists() :   
-            if Flight.objects.filter(origin=origin_airport[0], destination=destination_airport[0], **attrs).exists():
-                raise serializers.ValidationError("Flight already exists! Try with diffrent one...")
+            if not origin and not destination:
+                if not duration: 
+                    raise serializers.ValidationError("All Fields can't be empty!")
+                else:
+                    return attrs
+            
+            if origin is not None:
+                origin_airport = Airport.objects.filter(**origin)
 
-        attrs['origin'] = origin
-        attrs['destination'] = destination
+            if destination is not None:
+                destination_airport = Airport.objects.filter(**destination)
 
-        return attrs
+            if origin is None and destination_airport.exists():
+                origin = flight.origin
+                destination = destination_airport[0]
+
+            elif destination is None and origin_airport.exists():
+                origin = origin_airport[0]
+                destination = flight.destination
+
+            else:
+                return attrs
+            
+            temp = Flight.objects.filter(origin=origin, destination=destination, duration=duration)    
+            if temp.exists():
+                raise serializers.ValidationError("The Flight already exists !")
+
+            return attrs
+
+        elif request and request.method == 'POST':
+
+            origin = attrs.pop('origin')
+            destination = attrs.pop('destination')
+
+            origin_airport = Airport.objects.filter(**origin)
+            destination_airport = Airport.objects.filter(**destination)
+
+            if origin_airport.exists() and destination_airport.exists() :   
+                if Flight.objects.filter(origin=origin_airport[0], destination=destination_airport[0], **attrs).exists():
+                    raise serializers.ValidationError("Flight already exists! Try with diffrent one...")
+
+            attrs['origin'] = origin
+            attrs['destination'] = destination
+
+            return attrs
 
     def to_representation(self, instance):
         rep = super().to_representation(instance)
 
         request = self.context.get('request', None)
 
-        if request and request.method == 'POST':
+        if request and ( request.method == 'POST' or request.method == 'PUT') :
             rep.pop('passengers')
 
         elif request and request.method == 'GET':
@@ -118,6 +170,27 @@ class FlightSerilizer(serializers.ModelSerializer):
         destination_flight, created = Airport.objects.get_or_create(**destination)
 
         return Flight.objects.create(origin=origin_flight, destination=destination_flight, **validated_data)
+
+
+    def update(self, instance, validated_data):
+        origin = validated_data.get('origin')
+        destination = validated_data.get('destination')
+        duration = validated_data.get('duration')
+
+        if origin is not None:
+           origin_instance, _ = Airport.objects.get_or_create(**origin)
+           instance.origin = origin_instance
+
+        if destination is not None:
+           destination_instance, _ = Airport.objects.get_or_create(**destination)
+           instance.destination = destination_instance
+
+        if duration is not None:
+           instance.duration = duration
+
+        instance.save()
+        return instance
+
 
 
 
