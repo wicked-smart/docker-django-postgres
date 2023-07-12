@@ -1,7 +1,10 @@
 from rest_framework import serializers
+from rest_framework.fields import empty
 from barfoo.models import *
 from rest_framework.validators import UniqueTogetherValidator
 from collections import OrderedDict
+import secrets
+import re
 
 
 
@@ -190,6 +193,146 @@ class FlightSerilizer(serializers.ModelSerializer):
 
         instance.save()
         return instance
+
+#Flight Book Query Params Serializer
+class BookingQueryParamsSerializer(serializers.Serializer):
+    on_date = serializers.CharField(max_length=10, required=False)
+    from_date = serializers.CharField(max_length=10, required=False)
+    to_date = serializers.CharField(max_length=10, required=False)
+    
+    def validate(self, attrs):
+
+        on_date = attrs.get('on_date', None)
+        from_date = attrs.get('from_date', None)
+        to_date = attrs.get('to_date', None)
+
+        if not on_date and not from_date and not to_date:
+            raise serializers.ValidationError("Invalid query params. check the API Documemtation") 
+
+        if on_date  and (from_date or to_date):
+            raise serializers.ValidationError("Invalida query params, call either on_date or from_date not both!")
+        
+        if (from_date and not to_date) or (to_date and not from_date):
+            raise serializers.ValidationError("Invalid query params, Both from_date and to_date needs to be present!!")
+        #regex for date matching
+        
+        date_pattern = re.compile(r"^(0[1-9]|[1-2][0-9]|3[0-1])([-./])(0[1-9]|1[0-2])\2\d{4}$")
+
+        if on_date:
+            match = date_pattern.match(on_date)
+            if not match:
+                raise serializers.ValidationError("Invalid Date Format.")
+
+        elif from_date and to_date:
+
+            match1 = date_pattern.match(from_date)
+            match2 = date_pattern.match(to_date)
+
+            if not match1 or not match2:
+                raise serializers.ValidationError("Invalid Date Format.") 
+            
+    
+
+        return attrs
+
+
+#passenger serialization
+class PassengerSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Passenger
+        fields = ['id', 'first_name', 'last_name']
+
+class FlightBookingSerializer(serializers.ModelSerializer):
+    adults = serializers.IntegerField(required=True, write_only=True)
+    children = serializers.IntegerField(required=True, write_only=True)
+    passengers = serializers.ListField(required=True, write_only=True, 
+        child=serializers.DictField(
+            child=serializers.CharField(max_length=50)
+        )
+    )
+
+
+    class Meta:
+        model = FlightBook
+        fields = ['booking_ref','flight', 'adults', 'status' , 'children', 'passengers']
+        extra_kwargs = {
+            'booking_ref': {'required': False},
+            'flight': {'required': False},
+            'status': {'required': False},
+
+        }
+
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__( *args, **kwargs)
+
+        request = self.context.get('request', None)
+        if request and request.method == 'PUT':
+            self.fields['adults'].allow_null = True
+            self.fields['children'].allow_null = True
+            self.fields['flight'].allow_null = True
+            self.fields['passengers'].allow_null = True
+            self.fields['status'].allow_null = True
+        
+   
+    
+    def validate(self, attrs):
+
+        request = self.context.get('request', None)
+        booking = self.context.get('booking')
+
+        if request and booking.exists() and request.method == 'PUT':
+            
+            if 'flight' in attrs and  attrs['flight'] != booking[0].flight:
+                raise serializers.ValidationError('you cannot update flight in this request , please first CANCEL then POST to bookings endpoint!') 
+
+            if attrs['status'] == 'CONFIRMED' or attrs['status'] == 'PENDING':
+                raise serializers.ValidationError('Not Allowed!')
+            
+            if attrs['status'] == 'CANCELED' and (booking[0].status == 'CANCELED' or booking[0].status == 'PENDING'):
+                raise serializers.ValidationError('Not Allowed!')
+            
+        return attrs 
+    
+
+    def create(self, validated_data):
+        flight = self.context.get('flight')
+
+        passengers = validated_data.get('passengers')
+        booking_ref = secrets.token_hex(5).capitalize()
+        
+
+        if flight is not None: 
+            booking = FlightBook.objects.create(booking_ref=booking_ref, flight=flight, status='PENDING')
+
+            #Add passengers to the flight
+            for passenger in passengers:
+                passenger,_ = Passenger.objects.get_or_create(first_name=passenger['first_name'], last_name=passenger['last_name'])
+                booking.passengers.add(passenger)
+        
+        #Book the flight
+        
+        booking.save()
+
+        return booking
+    
+
+    def update(self, instance, validated_data):
+
+       status = validated_data.get('status', None)
+
+       if status:
+           instance.status = status
+        
+       instance.save()
+       
+       return instance
+
+            
+
+
+
 
 
 
