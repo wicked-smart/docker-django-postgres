@@ -133,6 +133,7 @@ def flight_book(request, flight_id):
             bookings = FlightBook.objects.filter(flight=flight)
 
         else:
+            # Use QuerySerializer defined in the serializer file to validate and serializer query params
             query_serializer = BookingQueryParamsSerializer(data=params)
             if query_serializer.is_valid():
 
