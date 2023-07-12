@@ -5,6 +5,11 @@ from rest_framework import status
 from barfoo.models import *
 from .serializers import *
 from datetime import date, datetime
+import pdfkit
+from django.template.loader import get_template
+from django.template import Context
+from django.http import HttpResponse
+
 
 # Create your views here.
 
@@ -204,3 +209,29 @@ def bookings(request, booking_ref):
 
         return Response({'message': 'Succesfully deleted!'}, status=status.HTTP_200_OK)
 
+
+@api_view(['GET', 'POST'])
+
+def get_pdf(request):
+
+    if request.method == 'GET':
+
+        template = get_template("barfoo/testing.html")
+        context = Context({"data": "bhai 500 lele bas print kara de!!!!"})
+        html = template.render(context)
+
+        pdfkit.from_string(html, "output.pdf", options = {
+            'page-size': 'A4',
+        'margin-top': '0.75in',
+        'margin-right': '0.75in',
+        'margin-bottom': '0.75in',
+        'margin-left': '0.75in'
+        })
+
+        pdf = open("output.pdf")
+        response = HttpResponse(pdf.read(), content_type="application/pdf")
+        response['Content-Disposition'] = 'attachement; filename=output.pdf'
+
+        pdf.close()
+
+        return response
